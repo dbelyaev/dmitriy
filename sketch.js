@@ -161,10 +161,15 @@ function wrapText(str, maxWidth) {
 // (used for initial population so stars appear gradually rather than
 // all popping in at the far plane at once)
 function makeStar(randomDepth) {
+  const z = randomDepth ? random(1, config.maxZ) : config.maxZ;
+  // clamp x/y to |x|,|y| <= z so the projected position is already on-screen
+  // for this depth — avoids an instant cull-and-respawn-at-maxZ on frame 1
+  const maxX = min(width / 2, z);
+  const maxY = min(height / 2, z);
   return {
-    x: random(-width / 2, width / 2),
-    y: random(-height / 2, height / 2),
-    z: randomDepth ? random(1, config.maxZ) : config.maxZ,
+    x: random(-maxX, maxX),
+    y: random(-maxY, maxY),
+    z,
     r: config.baseColor.r + random(-config.colorVariation, config.colorVariation),
     g: config.baseColor.g + random(-config.colorVariation, config.colorVariation),
     b: config.baseColor.b + random(-config.colorVariation, config.colorVariation),
