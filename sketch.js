@@ -1,7 +1,7 @@
 // ----- Configurable parameters -----
 const config = {
   numStars: 600,
-  speed: 8, // depth units per frame
+  speed: 4, // depth units per frame
   maxZ: 1000, // spawn depth (far plane)
   minSize: 0.5, // pixel size at far plane
   maxSize: 4, // pixel size at near plane
