@@ -1,0 +1,33 @@
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+canvas {
+    margin: auto;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.noscript-fallback {
+    position: fixed;
+    inset: 0;
+    overflow: auto;
+    color: #fff;
+    background: #000;
+    font-family: sans-serif;
+    text-align: center;
+    padding: 2rem;
+    box-sizing: border-box;
+}

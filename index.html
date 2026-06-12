@@ -5,23 +5,22 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';">
+    <meta name="description" content="Personal website showing some random stuff.">
 
     <title>dmitriy.io</title>
 
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-        }
-
-        canvas {
-            margin: auto;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
+    <noscript>
+        <div class="noscript-fallback">
+            <div class="noscript-fallback__title">⚠️ JavaScript Required</div>
+            <div>Please enable JavaScript to view this 3D content.</div>
+        </div>
+    </noscript>
+    <div id="quote-sr" class="sr-only" aria-live="polite"></div>
     <script src="sketch.js" defer></script>
 </body>
 

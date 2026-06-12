@@ -17,8 +17,11 @@ const config = {
 };
 
 const canvas = document.createElement("canvas");
+canvas.setAttribute("aria-hidden", "true");
 document.body.appendChild(canvas);
 const ctx = canvas.getContext("2d");
+
+const quoteSrEl = document.getElementById("quote-sr");
 
 let width, height;
 let stars = [];
@@ -135,6 +138,13 @@ function layoutQuote() {
 
   octx.font = `${authorSize}px ${config.quoteFont}`;
   authorLines = wrapText(octx, "— " + quote.author, maxWidth);
+
+  if (quoteSrEl) {
+    const quoteText = `${quote.text} — ${quote.author}`;
+    if (quoteSrEl.textContent !== quoteText) {
+      quoteSrEl.textContent = quoteText;
+    }
+  }
 
   const quoteLineHeight = quoteSize * config.lineHeightRatio;
   const authorLineHeight = authorSize * config.lineHeightRatio;
