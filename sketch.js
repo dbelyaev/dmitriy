@@ -34,7 +34,7 @@ function setup() {
     stars.push(makeStar(true));
   }
 
-  quote = random(quotesData);
+  quote = random(quotesData.quotes);
   layoutQuote();
 }
 
