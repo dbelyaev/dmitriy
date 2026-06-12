@@ -16,34 +16,73 @@ const config = {
   quoteAuthorGapRatio: 1.0, // gap between quote and author, in author line heights
 };
 
+const canvas = document.createElement("canvas");
+document.body.appendChild(canvas);
+const ctx = canvas.getContext("2d");
+
+let width, height;
 let stars = [];
-let quotesData;
 let quote;
 let quoteLines = [];
 let authorLines = [];
 let quoteSize;
 let authorSize;
+let quoteCanvas = null;
 
-function preload() {
-  quotesData = loadJSON("quotes.json");
+function random(min, max) {
+  return min + Math.random() * (max - min);
 }
 
-function setup() {
-  createCanvas(windowWidth, windowHeight);
+function clamp(value, lo, hi) {
+  return Math.min(Math.max(value, lo), hi);
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function pickRandom(arr) {
+  if (!arr || arr.length === 0) return undefined;
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function resizeCanvas() {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+}
+
+function init() {
+  resizeCanvas();
+
   for (let i = 0; i < config.numStars; i++) {
     stars.push(makeStar(true));
   }
 
-  quote = random(quotesData?.quotes);
-  if (quote) {
-    layoutQuote();
-  }
+  fetch("quotes.json")
+    .then((res) => res.json())
+    .then((data) => {
+      quote = pickRandom(data?.quotes);
+      if (quote) {
+        layoutQuote();
+      }
+    })
+    .catch(() => {});
+
+  window.addEventListener("resize", () => {
+    resizeCanvas();
+    if (quote) {
+      layoutQuote();
+    }
+  });
+
+  requestAnimationFrame(draw);
 }
 
 function draw() {
-  background(0);
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, width, height);
 
-  for (let star of stars) {
+  for (const star of stars) {
     star.z -= config.speed;
     if (star.z <= 1) {
       Object.assign(star, makeStar(false));
@@ -60,21 +99,42 @@ function draw() {
     const depthRatio = 1 - star.z / config.maxZ; // 0 (far) -> 1 (near)
     const size = lerp(config.minSize, config.maxSize, depthRatio);
 
-    noStroke();
-    fill(
-      constrain(star.r, 0, 255),
-      constrain(star.g, 0, 255),
-      constrain(star.b, 0, 255)
-    );
-    circle(sx, sy, size);
+    ctx.fillStyle = star.color;
+    ctx.beginPath();
+    ctx.arc(sx, sy, size / 2, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  drawQuote();
+  if (quoteCanvas) {
+    ctx.drawImage(quoteCanvas, 0, 0);
+  }
+
+  requestAnimationFrame(draw);
 }
 
-// draw the centered quote and author, vertically centered as a block
-function drawQuote() {
-  if (!quote) return;
+// pre-render the centered quote and author onto an offscreen canvas so
+// drawing it each frame is a cheap drawImage instead of re-rasterizing text
+function layoutQuote() {
+  const offscreen = document.createElement("canvas");
+  offscreen.width = width;
+  offscreen.height = height;
+  const octx = offscreen.getContext("2d");
+  octx.textAlign = "center";
+  octx.textBaseline = "top";
+
+  quoteSize = Math.max(config.quoteMinSize, width * config.quoteSizeRatio);
+  authorSize = quoteSize * config.authorSizeRatio;
+  const maxWidth = width * config.quoteMaxWidthRatio;
+
+  octx.font = `${quoteSize}px ${config.quoteFont}`;
+  quoteLines = wrapText(octx, quote.text, maxWidth);
+  if (quoteLines.length > 0) {
+    quoteLines[0] = "“" + quoteLines[0];
+    quoteLines[quoteLines.length - 1] += "”";
+  }
+
+  octx.font = `${authorSize}px ${config.quoteFont}`;
+  authorLines = wrapText(octx, "— " + quote.author, maxWidth);
 
   const quoteLineHeight = quoteSize * config.lineHeightRatio;
   const authorLineHeight = authorSize * config.lineHeightRatio;
@@ -84,66 +144,44 @@ function drawQuote() {
 
   let y = height / 2 - totalHeight / 2;
 
-  textAlign(CENTER, TOP);
-  noStroke();
-
-  textSize(quoteSize);
-  fill(255, 255, 255, 230);
+  octx.font = `${quoteSize}px ${config.quoteFont}`;
+  octx.fillStyle = "rgba(255, 255, 255, 0.9)";
   for (const line of quoteLines) {
-    text(line, width / 2, y);
+    octx.fillText(line, width / 2, y);
     y += quoteLineHeight;
   }
 
   y += gap;
 
-  textSize(authorSize);
-  fill(200, 200, 200, 150);
+  octx.font = `${authorSize}px ${config.quoteFont}`;
+  octx.fillStyle = "rgba(200, 200, 200, 0.59)";
   for (const line of authorLines) {
-    text(line, width / 2, y);
+    octx.fillText(line, width / 2, y);
     y += authorLineHeight;
   }
+
+  quoteCanvas = offscreen;
 }
 
-// wrap the quote text and author into lines that fit within maxWidth,
-// caching the results in quoteLines/authorLines along with the computed
-// text sizes for use in drawQuote()
-function layoutQuote() {
-  textFont(config.quoteFont);
-
-  quoteSize = max(config.quoteMinSize, width * config.quoteSizeRatio);
-  authorSize = quoteSize * config.authorSizeRatio;
-  const maxWidth = width * config.quoteMaxWidthRatio;
-
-  textSize(quoteSize);
-  quoteLines = wrapText(quote.text, maxWidth);
-  if (quoteLines.length > 0) {
-    quoteLines[0] = "“" + quoteLines[0];
-    quoteLines[quoteLines.length - 1] += "”";
-  }
-
-  textSize(authorSize);
-  authorLines = wrapText("— " + quote.author, maxWidth);
-}
-
-// split `str` into lines whose rendered width (at the current textSize)
+// split `str` into lines whose rendered width (at the current font)
 // does not exceed `maxWidth`; words longer than `maxWidth` on their own
 // are hard-broken character by character
-function wrapText(str, maxWidth) {
+function wrapText(measureCtx, str, maxWidth) {
   const words = str.split(/\s+/);
   const lines = [];
   let current = "";
 
   for (const word of words) {
     const candidate = current ? `${current} ${word}` : word;
-    if (current && textWidth(candidate) > maxWidth) {
+    if (current && measureCtx.measureText(candidate).width > maxWidth) {
       lines.push(current);
       current = "";
     }
 
     let remaining = word;
-    while (textWidth(remaining) > maxWidth) {
+    while (measureCtx.measureText(remaining).width > maxWidth) {
       let splitAt = remaining.length;
-      while (splitAt > 1 && textWidth(remaining.slice(0, splitAt)) > maxWidth) {
+      while (splitAt > 1 && measureCtx.measureText(remaining.slice(0, splitAt)).width > maxWidth) {
         splitAt--;
       }
       lines.push(remaining.slice(0, splitAt));
@@ -164,21 +202,17 @@ function makeStar(randomDepth) {
   const z = randomDepth ? random(1, config.maxZ) : config.maxZ;
   // clamp x/y to |x|,|y| <= z so the projected position is already on-screen
   // for this depth — avoids an instant cull-and-respawn-at-maxZ on frame 1
-  const maxX = min(width / 2, z);
-  const maxY = min(height / 2, z);
+  const maxX = Math.min(width / 2, z);
+  const maxY = Math.min(height / 2, z);
+  const r = clamp(config.baseColor.r + random(-config.colorVariation, config.colorVariation), 0, 255);
+  const g = clamp(config.baseColor.g + random(-config.colorVariation, config.colorVariation), 0, 255);
+  const b = clamp(config.baseColor.b + random(-config.colorVariation, config.colorVariation), 0, 255);
   return {
     x: random(-maxX, maxX),
     y: random(-maxY, maxY),
     z,
-    r: config.baseColor.r + random(-config.colorVariation, config.colorVariation),
-    g: config.baseColor.g + random(-config.colorVariation, config.colorVariation),
-    b: config.baseColor.b + random(-config.colorVariation, config.colorVariation),
+    color: `rgb(${r}, ${g}, ${b})`,
   };
 }
 
-function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
-  if (quote) {
-    layoutQuote();
-  }
-}
+init();
