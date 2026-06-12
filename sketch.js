@@ -34,8 +34,10 @@ function setup() {
     stars.push(makeStar(true));
   }
 
-  quote = random(quotesData.quotes);
-  layoutQuote();
+  quote = random(quotesData?.quotes);
+  if (quote) {
+    layoutQuote();
+  }
 }
 
 function draw() {
@@ -72,6 +74,8 @@ function draw() {
 
 // draw the centered quote and author, vertically centered as a block
 function drawQuote() {
+  if (!quote) return;
+
   const quoteLineHeight = quoteSize * config.lineHeightRatio;
   const authorLineHeight = authorSize * config.lineHeightRatio;
   const gap = authorLines.length > 0 ? authorLineHeight * config.quoteAuthorGapRatio : 0;
@@ -122,7 +126,8 @@ function layoutQuote() {
 }
 
 // split `str` into lines whose rendered width (at the current textSize)
-// does not exceed `maxWidth`
+// does not exceed `maxWidth`; words longer than `maxWidth` on their own
+// are hard-broken character by character
 function wrapText(str, maxWidth) {
   const words = str.split(/\s+/);
   const lines = [];
@@ -132,10 +137,20 @@ function wrapText(str, maxWidth) {
     const candidate = current ? `${current} ${word}` : word;
     if (current && textWidth(candidate) > maxWidth) {
       lines.push(current);
-      current = word;
-    } else {
-      current = candidate;
+      current = "";
     }
+
+    let remaining = word;
+    while (textWidth(remaining) > maxWidth) {
+      let splitAt = remaining.length;
+      while (splitAt > 1 && textWidth(remaining.slice(0, splitAt)) > maxWidth) {
+        splitAt--;
+      }
+      lines.push(remaining.slice(0, splitAt));
+      remaining = remaining.slice(splitAt);
+    }
+
+    current = current ? `${current} ${remaining}` : remaining;
   }
   if (current) lines.push(current);
 
@@ -158,5 +173,7 @@ function makeStar(randomDepth) {
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
-  layoutQuote();
+  if (quote) {
+    layoutQuote();
+  }
 }
