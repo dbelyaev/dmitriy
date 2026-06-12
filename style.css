@@ -21,9 +21,13 @@ canvas {
 }
 
 .noscript-fallback {
+    position: fixed;
+    inset: 0;
+    overflow: auto;
     color: #fff;
     background: #000;
     font-family: sans-serif;
     text-align: center;
     padding: 2rem;
+    box-sizing: border-box;
 }
