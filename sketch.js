@@ -140,7 +140,10 @@ function layoutQuote() {
   authorLines = wrapText(octx, "— " + quote.author, maxWidth);
 
   if (quoteSrEl) {
-    quoteSrEl.textContent = `${quote.text} — ${quote.author}`;
+    const quoteText = `${quote.text} — ${quote.author}`;
+    if (quoteSrEl.textContent !== quoteText) {
+      quoteSrEl.textContent = quoteText;
+    }
   }
 
   const quoteLineHeight = quoteSize * config.lineHeightRatio;
