@@ -64,15 +64,24 @@ function pickQuote(quotes) {
   if (!quotes || quotes.length === 0) return undefined;
   if (quotes.length === 1) return quotes[0];
 
-  const stored = localStorage.getItem(LAST_QUOTE_INDEX_KEY);
-  const lastIndex = stored === null ? -1 : Number(stored);
+  let lastIndex = -1;
+  try {
+    const stored = localStorage.getItem(LAST_QUOTE_INDEX_KEY);
+    if (stored !== null) lastIndex = Number(stored);
+  } catch {
+    // localStorage unavailable (privacy mode, sandboxed iframe, etc.)
+  }
 
   let index;
   do {
     index = Math.floor(Math.random() * quotes.length);
   } while (index === lastIndex);
 
-  localStorage.setItem(LAST_QUOTE_INDEX_KEY, String(index));
+  try {
+    localStorage.setItem(LAST_QUOTE_INDEX_KEY, String(index));
+  } catch {
+    // ignore - quote will just be picked fully at random next time
+  }
   return quotes[index];
 }
 
@@ -205,6 +214,8 @@ function renderAuthorOverlay(lines, startY, fontSize, lineHeight) {
   const overlay = getAuthorOverlay();
   overlay.innerHTML = "";
 
+  const link = isHttpUrl(quote.link) ? quote.link : null;
+
   lines.forEach((line, i) => {
     const lineEl = document.createElement("div");
     lineEl.className = "quote-author-line";
@@ -215,23 +226,41 @@ function renderAuthorOverlay(lines, startY, fontSize, lineHeight) {
 
     let nameText = line;
     if (i === 0) {
-      const prefix = "— ";
-      lineEl.appendChild(document.createTextNode(prefix));
-      nameText = line.slice(prefix.length);
+      // first line is prefixed with "— "; on narrow viewports the dash can
+      // wrap onto its own line as just "—" with no trailing space
+      const dashPrefix = line.match(/^—\s*/);
+      if (dashPrefix) {
+        lineEl.appendChild(document.createTextNode(dashPrefix[0]));
+        nameText = line.slice(dashPrefix[0].length);
+      }
     }
 
-    const nameEl = document.createElement(quote.link ? "a" : "span");
-    nameEl.textContent = nameText;
-    if (quote.link) {
-      nameEl.className = "quote-author-link";
-      nameEl.href = quote.link;
-      nameEl.target = "_blank";
-      nameEl.rel = "noopener noreferrer";
+    if (nameText) {
+      const nameEl = document.createElement(link ? "a" : "span");
+      nameEl.textContent = nameText;
+      if (link) {
+        nameEl.className = "quote-author-link";
+        nameEl.href = link;
+        nameEl.target = "_blank";
+        nameEl.rel = "noopener noreferrer";
+      }
+      lineEl.appendChild(nameEl);
     }
-    lineEl.appendChild(nameEl);
 
     overlay.appendChild(lineEl);
   });
+}
+
+// only allow http(s) links to be rendered as anchors, guarding against
+// javascript: or other unsafe schemes if quotes.json is ever untrusted
+function isHttpUrl(url) {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url, window.location.href);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 // split `str` into lines whose rendered width (at the current font)
@@ -266,9 +295,6 @@ function wrapText(measureCtx, str, maxWidth) {
   return lines;
 }
 
-// create a star; if `randomDepth` is true, place it at a random depth
-// (used for initial population so stars appear gradually rather than
-// all popping in at the far plane at once)
 // (re)initialize a star in place; if `randomDepth` is true, place it at a
 // random depth (used for initial population so stars appear gradually
 // rather than all popping in at the far plane at once)
