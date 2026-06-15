@@ -67,7 +67,10 @@ function pickQuote(quotes) {
   let lastIndex = -1;
   try {
     const stored = localStorage.getItem(LAST_QUOTE_INDEX_KEY);
-    if (stored !== null) lastIndex = Number(stored);
+    const parsed = stored === null ? NaN : Number(stored);
+    if (Number.isInteger(parsed) && parsed >= 0 && parsed < quotes.length) {
+      lastIndex = parsed;
+    }
   } catch {
     // localStorage unavailable (privacy mode, sandboxed iframe, etc.)
   }
