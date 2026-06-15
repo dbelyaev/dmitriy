@@ -54,9 +54,24 @@ function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
-function pickRandom(arr) {
-  if (!arr || arr.length === 0) return undefined;
-  return arr[Math.floor(Math.random() * arr.length)];
+const LAST_QUOTE_INDEX_KEY = "lastQuoteIndex";
+
+// pick a random quote, avoiding the one shown on the previous load
+// (tracked via localStorage so it persists across reloads)
+function pickQuote(quotes) {
+  if (!quotes || quotes.length === 0) return undefined;
+  if (quotes.length === 1) return quotes[0];
+
+  const stored = localStorage.getItem(LAST_QUOTE_INDEX_KEY);
+  const lastIndex = stored === null ? -1 : Number(stored);
+
+  let index;
+  do {
+    index = Math.floor(Math.random() * quotes.length);
+  } while (index === lastIndex);
+
+  localStorage.setItem(LAST_QUOTE_INDEX_KEY, String(index));
+  return quotes[index];
 }
 
 function resizeCanvas() {
@@ -74,7 +89,7 @@ function init() {
   fetch("quotes.json")
     .then((res) => res.json())
     .then((data) => {
-      quote = pickRandom(data?.quotes);
+      quote = pickQuote(data?.quotes);
       if (quote) {
         layoutQuote();
       }
