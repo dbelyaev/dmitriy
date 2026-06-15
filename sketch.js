@@ -112,17 +112,20 @@ function draw() {
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, width, height);
 
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
+
   for (const star of stars) {
     star.z -= config.speed;
     if (star.z <= 1) {
-      Object.assign(star, makeStar(false));
+      resetStar(star, false);
     }
 
-    const sx = (star.x / star.z) * (width / 2) + width / 2;
-    const sy = (star.y / star.z) * (height / 2) + height / 2;
+    const sx = (star.x / star.z) * halfWidth + halfWidth;
+    const sy = (star.y / star.z) * halfHeight + halfHeight;
 
     if (sx < 0 || sx > width || sy < 0 || sy > height) {
-      Object.assign(star, makeStar(false));
+      resetStar(star, false);
       continue;
     }
 
@@ -266,7 +269,10 @@ function wrapText(measureCtx, str, maxWidth) {
 // create a star; if `randomDepth` is true, place it at a random depth
 // (used for initial population so stars appear gradually rather than
 // all popping in at the far plane at once)
-function makeStar(randomDepth) {
+// (re)initialize a star in place; if `randomDepth` is true, place it at a
+// random depth (used for initial population so stars appear gradually
+// rather than all popping in at the far plane at once)
+function resetStar(star, randomDepth) {
   const z = randomDepth ? random(1, config.maxZ) : config.maxZ;
   // clamp x/y to |x|,|y| <= z so the projected position is already on-screen
   // for this depth — avoids an instant cull-and-respawn-at-maxZ on frame 1
@@ -275,12 +281,16 @@ function makeStar(randomDepth) {
   const r = clamp(config.baseColor.r + random(-config.colorVariation, config.colorVariation), 0, 255);
   const g = clamp(config.baseColor.g + random(-config.colorVariation, config.colorVariation), 0, 255);
   const b = clamp(config.baseColor.b + random(-config.colorVariation, config.colorVariation), 0, 255);
-  return {
-    x: random(-maxX, maxX),
-    y: random(-maxY, maxY),
-    z,
-    color: `rgb(${r}, ${g}, ${b})`,
-  };
+
+  star.x = random(-maxX, maxX);
+  star.y = random(-maxY, maxY);
+  star.z = z;
+  star.color = `rgb(${r}, ${g}, ${b})`;
+  return star;
+}
+
+function makeStar(randomDepth) {
+  return resetStar({}, randomDepth);
 }
 
 init();
