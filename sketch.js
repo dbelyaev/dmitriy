@@ -7,12 +7,14 @@ const config = {
   maxSize: 4, // pixel size at near plane
   baseColor: { r: 255, g: 255, b: 255 }, // base star color (white)
   colorVariation: 40, // +/- random variation per channel for tint
-  quoteFont: "Georgia, serif",
+  quoteFont: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif',
+  quoteFontWeight: 300,
+  authorFontWeight: 400,
   quoteMaxWidthRatio: 0.7, // max text width as a fraction of canvas width
   quoteSizeRatio: 0.025, // quote text size as a fraction of canvas width
   quoteMinSize: 20,
   authorSizeRatio: 0.6, // author text size relative to quote text size
-  lineHeightRatio: 1.4, // line height relative to text size
+  lineHeightRatio: 1.5, // line height relative to text size
   quoteAuthorGapRatio: 1.0, // gap between quote and author, in author line heights
 };
 
@@ -154,14 +156,14 @@ function layoutQuote() {
   authorSize = quoteSize * config.authorSizeRatio;
   const maxWidth = width * config.quoteMaxWidthRatio;
 
-  octx.font = `${quoteSize}px ${config.quoteFont}`;
+  octx.font = `${config.quoteFontWeight} ${quoteSize}px ${config.quoteFont}`;
   quoteLines = wrapText(octx, quote.text, maxWidth);
   if (quoteLines.length > 0) {
     quoteLines[0] = "“" + quoteLines[0];
     quoteLines[quoteLines.length - 1] += "”";
   }
 
-  octx.font = `${authorSize}px ${config.quoteFont}`;
+  octx.font = `${config.authorFontWeight} ${authorSize}px ${config.quoteFont}`;
   authorLines = wrapText(octx, "— " + quote.author, maxWidth);
 
   if (quoteSrEl) {
@@ -179,7 +181,7 @@ function layoutQuote() {
 
   let y = height / 2 - totalHeight / 2;
 
-  octx.font = `${quoteSize}px ${config.quoteFont}`;
+  octx.font = `${config.quoteFontWeight} ${quoteSize}px ${config.quoteFont}`;
   octx.fillStyle = "rgba(255, 255, 255, 0.9)";
   for (const line of quoteLines) {
     octx.fillText(line, width / 2, y);
@@ -206,6 +208,7 @@ function renderAuthorOverlay(lines, startY, fontSize, lineHeight) {
     lineEl.style.top = `${startY + i * lineHeight}px`;
     lineEl.style.fontSize = `${fontSize}px`;
     lineEl.style.fontFamily = config.quoteFont;
+    lineEl.style.fontWeight = config.authorFontWeight;
 
     let nameText = line;
     if (i === 0) {
