@@ -31,6 +31,16 @@ let authorLines = [];
 let quoteSize;
 let authorSize;
 let quoteCanvas = null;
+let authorOverlay = null;
+
+function getAuthorOverlay() {
+  if (!authorOverlay) {
+    authorOverlay = document.createElement("div");
+    authorOverlay.className = "quote-author-overlay";
+    document.body.appendChild(authorOverlay);
+  }
+  return authorOverlay;
+}
 
 function random(min, max) {
   return min + Math.random() * (max - min);
@@ -163,14 +173,44 @@ function layoutQuote() {
 
   y += gap;
 
-  octx.font = `${authorSize}px ${config.quoteFont}`;
-  octx.fillStyle = "rgba(200, 200, 200, 0.59)";
-  for (const line of authorLines) {
-    octx.fillText(line, width / 2, y);
-    y += authorLineHeight;
-  }
+  renderAuthorOverlay(authorLines, y, authorSize, authorLineHeight);
 
   quoteCanvas = offscreen;
+}
+
+// render the author line(s) as DOM elements (instead of canvas) so the
+// author name can be a clickable link; position/size mirror the canvas
+// text layout computed above
+function renderAuthorOverlay(lines, startY, fontSize, lineHeight) {
+  const overlay = getAuthorOverlay();
+  overlay.innerHTML = "";
+
+  lines.forEach((line, i) => {
+    const lineEl = document.createElement("div");
+    lineEl.className = "quote-author-line";
+    lineEl.style.top = `${startY + i * lineHeight}px`;
+    lineEl.style.fontSize = `${fontSize}px`;
+    lineEl.style.fontFamily = config.quoteFont;
+
+    let nameText = line;
+    if (i === 0) {
+      const prefix = "— ";
+      lineEl.appendChild(document.createTextNode(prefix));
+      nameText = line.slice(prefix.length);
+    }
+
+    const nameEl = document.createElement(quote.link ? "a" : "span");
+    nameEl.textContent = nameText;
+    if (quote.link) {
+      nameEl.className = "quote-author-link";
+      nameEl.href = quote.link;
+      nameEl.target = "_blank";
+      nameEl.rel = "noopener noreferrer";
+    }
+    lineEl.appendChild(nameEl);
+
+    overlay.appendChild(lineEl);
+  });
 }
 
 // split `str` into lines whose rendered width (at the current font)
