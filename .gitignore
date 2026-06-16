@@ -39,3 +39,6 @@ http-client.private.env.json
 # System Files
 .DS_Store
 Thumbs.db
+
+# Claude Code
+.claude/

@@ -7,12 +7,14 @@ const config = {
   maxSize: 4, // pixel size at near plane
   baseColor: { r: 255, g: 255, b: 255 }, // base star color (white)
   colorVariation: 40, // +/- random variation per channel for tint
-  quoteFont: "Georgia, serif",
+  quoteFont: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif',
+  quoteFontWeight: 300,
+  authorFontWeight: 400,
   quoteMaxWidthRatio: 0.7, // max text width as a fraction of canvas width
   quoteSizeRatio: 0.025, // quote text size as a fraction of canvas width
   quoteMinSize: 20,
   authorSizeRatio: 0.6, // author text size relative to quote text size
-  lineHeightRatio: 1.4, // line height relative to text size
+  lineHeightRatio: 1.5, // line height relative to text size
   quoteAuthorGapRatio: 1.0, // gap between quote and author, in author line heights
 };
 
@@ -31,6 +33,16 @@ let authorLines = [];
 let quoteSize;
 let authorSize;
 let quoteCanvas = null;
+let authorOverlay = null;
+
+function getAuthorOverlay() {
+  if (!authorOverlay) {
+    authorOverlay = document.createElement("div");
+    authorOverlay.className = "quote-author-overlay";
+    document.body.appendChild(authorOverlay);
+  }
+  return authorOverlay;
+}
 
 function random(min, max) {
   return min + Math.random() * (max - min);
@@ -44,9 +56,36 @@ function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
-function pickRandom(arr) {
-  if (!arr || arr.length === 0) return undefined;
-  return arr[Math.floor(Math.random() * arr.length)];
+const LAST_QUOTE_INDEX_KEY = "lastQuoteIndex";
+
+// pick a random quote, avoiding the one shown on the previous load
+// (tracked via localStorage so it persists across reloads)
+function pickQuote(quotes) {
+  if (!quotes || quotes.length === 0) return undefined;
+  if (quotes.length === 1) return quotes[0];
+
+  let lastIndex = -1;
+  try {
+    const stored = localStorage.getItem(LAST_QUOTE_INDEX_KEY);
+    const parsed = stored === null ? NaN : Number(stored);
+    if (Number.isInteger(parsed) && parsed >= 0 && parsed < quotes.length) {
+      lastIndex = parsed;
+    }
+  } catch {
+    // localStorage unavailable (privacy mode, sandboxed iframe, etc.)
+  }
+
+  let index;
+  do {
+    index = Math.floor(Math.random() * quotes.length);
+  } while (index === lastIndex);
+
+  try {
+    localStorage.setItem(LAST_QUOTE_INDEX_KEY, String(index));
+  } catch {
+    // ignore - quote will just be picked fully at random next time
+  }
+  return quotes[index];
 }
 
 function resizeCanvas() {
@@ -64,7 +103,7 @@ function init() {
   fetch("quotes.json")
     .then((res) => res.json())
     .then((data) => {
-      quote = pickRandom(data?.quotes);
+      quote = pickQuote(data?.quotes);
       if (quote) {
         layoutQuote();
       }
@@ -85,17 +124,20 @@ function draw() {
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, width, height);
 
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
+
   for (const star of stars) {
     star.z -= config.speed;
     if (star.z <= 1) {
-      Object.assign(star, makeStar(false));
+      resetStar(star, false);
     }
 
-    const sx = (star.x / star.z) * (width / 2) + width / 2;
-    const sy = (star.y / star.z) * (height / 2) + height / 2;
+    const sx = (star.x / star.z) * halfWidth + halfWidth;
+    const sy = (star.y / star.z) * halfHeight + halfHeight;
 
     if (sx < 0 || sx > width || sy < 0 || sy > height) {
-      Object.assign(star, makeStar(false));
+      resetStar(star, false);
       continue;
     }
 
@@ -129,14 +171,14 @@ function layoutQuote() {
   authorSize = quoteSize * config.authorSizeRatio;
   const maxWidth = width * config.quoteMaxWidthRatio;
 
-  octx.font = `${quoteSize}px ${config.quoteFont}`;
+  octx.font = `${config.quoteFontWeight} ${quoteSize}px ${config.quoteFont}`;
   quoteLines = wrapText(octx, quote.text, maxWidth);
   if (quoteLines.length > 0) {
     quoteLines[0] = "“" + quoteLines[0];
     quoteLines[quoteLines.length - 1] += "”";
   }
 
-  octx.font = `${authorSize}px ${config.quoteFont}`;
+  octx.font = `${config.authorFontWeight} ${authorSize}px ${config.quoteFont}`;
   authorLines = wrapText(octx, "— " + quote.author, maxWidth);
 
   if (quoteSrEl) {
@@ -154,7 +196,7 @@ function layoutQuote() {
 
   let y = height / 2 - totalHeight / 2;
 
-  octx.font = `${quoteSize}px ${config.quoteFont}`;
+  octx.font = `${config.quoteFontWeight} ${quoteSize}px ${config.quoteFont}`;
   octx.fillStyle = "rgba(255, 255, 255, 0.9)";
   for (const line of quoteLines) {
     octx.fillText(line, width / 2, y);
@@ -163,14 +205,65 @@ function layoutQuote() {
 
   y += gap;
 
-  octx.font = `${authorSize}px ${config.quoteFont}`;
-  octx.fillStyle = "rgba(200, 200, 200, 0.59)";
-  for (const line of authorLines) {
-    octx.fillText(line, width / 2, y);
-    y += authorLineHeight;
-  }
+  renderAuthorOverlay(authorLines, y, authorSize, authorLineHeight);
 
   quoteCanvas = offscreen;
+}
+
+// render the author line(s) as DOM elements (instead of canvas) so the
+// author name can be a clickable link; position/size mirror the canvas
+// text layout computed above
+function renderAuthorOverlay(lines, startY, fontSize, lineHeight) {
+  const overlay = getAuthorOverlay();
+  overlay.innerHTML = "";
+
+  const link = isHttpUrl(quote.link) ? quote.link : null;
+
+  lines.forEach((line, i) => {
+    const lineEl = document.createElement("div");
+    lineEl.className = "quote-author-line";
+    lineEl.style.top = `${startY + i * lineHeight}px`;
+    lineEl.style.fontSize = `${fontSize}px`;
+    lineEl.style.fontFamily = config.quoteFont;
+    lineEl.style.fontWeight = config.authorFontWeight;
+
+    let nameText = line;
+    if (i === 0) {
+      // first line is prefixed with "— "; on narrow viewports the dash can
+      // wrap onto its own line as just "—" with no trailing space
+      const dashPrefix = line.match(/^—\s*/);
+      if (dashPrefix) {
+        lineEl.appendChild(document.createTextNode(dashPrefix[0]));
+        nameText = line.slice(dashPrefix[0].length);
+      }
+    }
+
+    if (nameText) {
+      const nameEl = document.createElement(link ? "a" : "span");
+      nameEl.textContent = nameText;
+      if (link) {
+        nameEl.className = "quote-author-link";
+        nameEl.href = link;
+        nameEl.target = "_blank";
+        nameEl.rel = "noopener noreferrer";
+      }
+      lineEl.appendChild(nameEl);
+    }
+
+    overlay.appendChild(lineEl);
+  });
+}
+
+// only allow http(s) links to be rendered as anchors, guarding against
+// javascript: or other unsafe schemes if quotes.json is ever untrusted
+function isHttpUrl(url) {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url, window.location.href);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 // split `str` into lines whose rendered width (at the current font)
@@ -205,10 +298,10 @@ function wrapText(measureCtx, str, maxWidth) {
   return lines;
 }
 
-// create a star; if `randomDepth` is true, place it at a random depth
-// (used for initial population so stars appear gradually rather than
-// all popping in at the far plane at once)
-function makeStar(randomDepth) {
+// (re)initialize a star in place; if `randomDepth` is true, place it at a
+// random depth (used for initial population so stars appear gradually
+// rather than all popping in at the far plane at once)
+function resetStar(star, randomDepth) {
   const z = randomDepth ? random(1, config.maxZ) : config.maxZ;
   // clamp x/y to |x|,|y| <= z so the projected position is already on-screen
   // for this depth — avoids an instant cull-and-respawn-at-maxZ on frame 1
@@ -217,12 +310,16 @@ function makeStar(randomDepth) {
   const r = clamp(config.baseColor.r + random(-config.colorVariation, config.colorVariation), 0, 255);
   const g = clamp(config.baseColor.g + random(-config.colorVariation, config.colorVariation), 0, 255);
   const b = clamp(config.baseColor.b + random(-config.colorVariation, config.colorVariation), 0, 255);
-  return {
-    x: random(-maxX, maxX),
-    y: random(-maxY, maxY),
-    z,
-    color: `rgb(${r}, ${g}, ${b})`,
-  };
+
+  star.x = random(-maxX, maxX);
+  star.y = random(-maxY, maxY);
+  star.z = z;
+  star.color = `rgb(${r}, ${g}, ${b})`;
+  return star;
+}
+
+function makeStar(randomDepth) {
+  return resetStar({}, randomDepth);
 }
 
 init();

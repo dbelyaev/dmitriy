@@ -2,7 +2,26 @@
   "quotes": [
     {
       "text": "Computer science is no more about computers than astronomy is about telescopes.",
-      "author": "Edsger W. Dijkstra"
+      "author": "Edsger W. Dijkstra",
+      "link": "https://en.wikipedia.org/wiki/Edsger_W._Dijkstra"
+    },
+    {
+      "text": "There are only two hard things in Computer Science: cache invalidation and naming things.",
+      "author": "Phil Karlton",
+      "link": "https://www.karlton.org/2017/12/naming-things-hard/"
+    },
+    {
+      "text": "Walking on water and developing software from a specification are easy if both are frozen.",
+      "author": "Edward V. Berard"
+    },
+    {
+      "text": "There are two ways to write error-free programs; only the third one works.",
+      "author": "Alan J. Perlis",
+      "link": "https://en.wikipedia.org/wiki/Alan_Perlis"
+    },
+    {
+      "text": "Deleted code is debugged code.",
+      "author": "Jeff Sickel"
     }
   ]
 }

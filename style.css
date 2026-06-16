@@ -31,3 +31,37 @@ canvas {
     padding: 2rem;
     box-sizing: border-box;
 }
+
+.quote-author-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.quote-author-line {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    line-height: 1;
+    white-space: nowrap;
+    color: rgba(200, 200, 200, 0.59);
+}
+
+.quote-author-link {
+    color: inherit;
+    text-decoration: none;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.quote-author-link:hover {
+    text-decoration: underline;
+}
+
+.quote-author-link:focus-visible {
+    outline: 1px solid rgba(255, 255, 255, 0.8);
+    outline-offset: 2px;
+}
